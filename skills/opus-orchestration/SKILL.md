@@ -85,7 +85,10 @@ throughput.
    through Codex CLI as a Bash tool call, authenticated against the ChatGPT
    Plus login. Real model IDs (confirmed via `codex` → `/model`):
 
-   - Luna: `codex exec --model gpt-6-luna "<spec>"`
+   - Luna: `codex exec --model gpt-6-luna -c model_reasoning_effort='"high"' "<spec>"`
+     (Luna always runs at **high** reasoning effort. Pass it explicitly
+     rather than relying on `~/.codex/config.toml`, which may differ between
+     machines.)
    - Sol: `codex exec --model gpt-6-sol "<spec>"`
    - Astra: `codex exec --model gpt-6-astra "<spec>"` (rule 6 only)
 
