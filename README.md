@@ -8,7 +8,7 @@ This is a 3D-printing variant of [opus-orchestration](https://github.com/alisenc
 
 | Tier | Where it runs | Role |
 |---|---|---|
-| **Opus** | main Claude Code session | Classifies tasks, writes specs, synthesizes results. The only dispatcher. |
+| **Opus** | main Claude Code session | Classifies tasks, writes specs, synthesizes results, models 3D parts, drives the screen. The only dispatcher. |
 | **Luna** (`gpt-6-luna`) | Codex CLI | Default executor for simple and medium work: bulk, research, exploration, scoped implementation. |
 | **Sol** (`gpt-6-sol`) | Codex CLI | Precision execution against a complete spec. |
 | **Astra** (`gpt-6-astra`) | Codex CLI | Hard reasoning only. It burns quota fastest. |
@@ -26,6 +26,7 @@ Key ideas:
 
 The `3d-print-workflow` skill covers the whole pipeline:
 
+0. **Printer profile:** on first use Claude checks the tools, asks once about your printer, nozzle, AMS and filaments, and saves the answers to `~/.claude/3d-printer-profile.md`.
 1. **Clarify the request:** real dimensions in mm (never guessed for parts that must fit something), purpose, printer model and build volume, filament, colours.
 2. **Model as parametric code:** OpenSCAD by default (models make 3–4× fewer code errors in it than in build123d/CadQuery), build123d only when needed.
 3. **Design for FDM:** wall thickness, overhangs, hole clearances, orientation for strength, first-layer details.

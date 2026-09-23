@@ -15,6 +15,25 @@ Routing of each step across models is in `opus-orchestration`, section
 "3D printing and computer use". This file covers what to do; that one covers
 who does it.
 
+## 0. Printer profile (first use only)
+
+Keep the user's setup in `~/.claude/3d-printer-profile.md` so they aren't
+asked the same questions every time. On the first 3D task, if the file is
+missing:
+
+1. Check tools once and tell the user what's missing (don't install on your
+   own): OpenSCAD (`openscad --version` or `/Applications/OpenSCAD.app`),
+   `python3 -c "import trimesh, scipy, PIL"`, Bambu Studio in
+   `/Applications`.
+2. Ask for the printer model, nozzle size, AMS (yes/no, which filaments in
+   which slots), usual filament, and, if they want CLI slicing, where their
+   exported preset JSONs are.
+3. Write the answers to the profile file. Update it when the user mentions a
+   change (new filament in a slot, new nozzle, new printer).
+
+Read the profile at the start of every later 3D task, and only ask about
+what it doesn't cover.
+
 ## 1. Pin down the request before modelling
 
 Most failed prints come from a wrong assumption, not bad code. Before writing
@@ -27,7 +46,7 @@ inferred; state assumptions for the rest):
   measurement to scale from.
 - **Purpose and load:** decorative, functional, snap-fit, outdoor, food
   contact, hot environment. This decides material and wall thickness.
-- **Printer and filament:** model (A1 mini / A1 / P1S / P2S / X1C / H2D …),
+- **Printer and filament** (from the profile, step 0): model (A1 mini / A1 / P1S / P2S / X1C / H2D …),
   nozzle (default 0.4 mm), AMS or not, filament type and colours. Check the
   printer's build volume before designing: A1 mini is 180×180×180 mm, A1 and
   the P1/X1 series are 256×256×256 mm; look up newer models rather than
@@ -171,6 +190,8 @@ BS=$(ls /Applications/BambuStudio.app/Contents/MacOS/* | head -1)  # binary name
   locate their user presets under
   `~/Library/Application Support/BambuStudio/user/`.
 - The CLI **cannot send to the printer.** It only produces the file.
+- This command hasn't been tested against every Bambu Studio version. If
+  it errors, check `"$BS" --help` for that version's flags, or use the GUI.
 - If the CLI is awkward, open the model in the GUI and slice there:
   `open -a "Bambu Studio" part.3mf`. That opens the file without screen
   control; computer use is only needed to click through from there.
