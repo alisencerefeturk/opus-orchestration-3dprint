@@ -94,15 +94,18 @@ when keeping units and plate layout matters (Bambu Studio prefers 3MF).
 
 Before calling a model done:
 
-1. **Mesh check** (watertight, size, volume), e.g.:
+1. **Mesh check** (needs `pip3 install trimesh scipy`; scipy is required
+   for the body count):
    ```bash
-   python3 -c "import trimesh,sys; m=trimesh.load(sys.argv[1]); print('watertight',m.is_watertight,'extents_mm',m.extents.round(2),'volume_cm3',round(m.volume/1000,1))" part.stl
+   python3 -c "import trimesh,sys; m=trimesh.load(sys.argv[1]); print('watertight',m.is_watertight,'| extents_mm',m.extents.round(2),'| z_min',round(m.bounds[0][2],2),'| volume_cm3',round(m.volume/1000,1),'| bodies',len(m.split(only_watertight=False)))" part.stl
    ```
-   Extents must match the intended size and fit the build volume. Also
-   check for disconnected pieces: `len(m.split(only_watertight=False))`
-   must equal the number of bodies you meant to make. A "floating" rib or
-   boss that doesn't touch the main body is a common AI modelling error and
-   it passes a render check easily.
+   - `watertight` must be True.
+   - `extents_mm` must match the intended size and fit the build volume.
+   - `z_min` must be 0: a negative value means something pokes below the
+     bed (a rotated part is the usual cause).
+   - `bodies` must equal the number of bodies you meant to make. A
+     "floating" rib or boss that doesn't touch the main body is a common AI
+     modelling error, and it passes a render check easily.
 2. **Render a contact sheet and look at it.** `render_sheet.py` (next to
    this file) renders isometric, front, right and bottom (bed face) views
    into one labelled PNG. It takes `.scad` or `.stl`/`.3mf`, and `%` ghost

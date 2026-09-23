@@ -60,7 +60,7 @@ For 3D printing, also:
 - **macOS** (computer use in the Claude Code CLI is macOS-only);
 - [OpenSCAD](https://openscad.org) (`brew install --cask openscad`);
 - [Bambu Studio](https://bambulab.com/en/download/studio), signed in and connected to your printer;
-- `trimesh` and `pillow` for mesh checks and preview sheets (`pip3 install trimesh pillow`);
+- `trimesh`, `scipy` and `pillow` for mesh checks and preview sheets (`pip3 install trimesh scipy pillow`);
 - computer use enabled once: in Claude Code run `/mcp`, select `computer-use`, choose **Enable**, then grant Accessibility and Screen Recording when macOS asks.
 
 ### Option A: let Claude Code install it (easiest)
@@ -73,7 +73,7 @@ Install the opus-orchestration-3dprint skills from https://github.com/alisencere
 1. Clone the repo to ~/opus-orchestration-3dprint. If that folder already exists and is this repo, run `git pull` in it instead.
 2. Run ./install.sh from the repo. It symlinks the two skills, the agent presets, and statusline.sh into ~/.claude and backs up any existing files first.
 3. Add "statusLine": {"type": "command", "command": "~/.claude/statusline.sh"} to ~/.claude/settings.json. Merge it and keep every other setting as is. If a different statusLine is already configured, show it to me and ask before replacing it.
-4. Check the prerequisites and report each one: `python3 --version`, `codex --version`, whether Codex is logged in (`codex login status`), whether OpenSCAD is installed (`openscad --version` or /Applications/OpenSCAD.app), whether Bambu Studio is in /Applications, and whether `python3 -c "import trimesh, PIL"` works. If something is missing, tell me how to fix it, but don't install it yourself.
+4. Check the prerequisites and report each one: `python3 --version`, `codex --version`, whether Codex is logged in (`codex login status`), whether OpenSCAD is installed (`openscad --version` or /Applications/OpenSCAD.app), whether Bambu Studio is in /Applications, and whether `python3 -c "import trimesh, scipy, PIL"` works. If something is missing, tell me how to fix it, but don't install it yourself.
 5. Remind me to enable computer use once via `/mcp` → computer-use → Enable (it asks for Accessibility and Screen Recording permissions).
 6. Tell me to restart Claude Code, then summarize what was installed and anything I still need to do by hand.
 ````
