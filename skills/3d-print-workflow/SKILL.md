@@ -103,13 +103,42 @@ Before calling a model done:
    must equal the number of bodies you meant to make. A "floating" rib or
    boss that doesn't touch the main body is a common AI modelling error and
    it passes a render check easily.
-2. **Render previews from several angles** (front, side, top, isometric,
-   and underneath for the bed face), then look at them:
+2. **Render a contact sheet and look at it.** `render_sheet.py` (next to
+   this file) renders isometric, front, right and bottom (bed face) views
+   into one labelled PNG. It takes `.scad` or `.stl`/`.3mf`, and `%` ghost
+   bodies show up in it.
    ```bash
-   openscad -o iso.png --render --imgsize=900,700 --viewall --autocenter \
-     --camera=0,0,0,55,0,25,0 part.scad
+   python3 ~/.claude/skills/3d-print-workflow/render_sheet.py part.scad               # draft
+   python3 ~/.claude/skills/3d-print-workflow/render_sheet.py part.scad --mode final  # before printing
+   python3 ~/.claude/skills/3d-print-workflow/render_sheet.py part.scad \
+     --closeup "tx,ty,tz,rx,ry,rz,dist" -o fit.png   # one feature up close
    ```
-   (For Python CAD, export STL and render with trimesh/pyrender or Blender.)
+   Needs OpenSCAD and Pillow (`pip3 install pillow`). For build123d/CadQuery, export an STL and
+   pass that.
+
+   **Image budget: cut tokens without losing quality.** Images cost
+   ⌈w/28⌉×⌈h/28⌉ tokens. On Opus 4.7+ an image is seen at full resolution
+   up to a 2576 px long edge / 4784 tokens; beyond that it's downscaled.
+   - **Numbers before pictures.** Run the mesh check first and fix
+     everything it can catch (size, holes, floating bodies) before rendering
+     at all. Text is far cheaper than an image, and a failed mesh doesn't
+     need a render.
+   - **Draft sheet while iterating** (1400×1456, about 2.6K tokens, 700 px
+     per view): enough to judge shape, orientation and where features sit.
+   - **Final sheet once, before printing** (1904×1960, about 4.8K tokens,
+     the maximum seen at full resolution). Don't render larger: it gets
+     downscaled, so it costs more and shows nothing extra.
+   - **Close-ups instead of enlarging everything.** If a small feature
+     (clearance, snap hook, text, thin wall) is under about 20 px on the
+     sheet, render a close-up of just that area (700 px, about 625 tokens)
+     rather than a bigger sheet. Every feature that must fit something gets
+     a close-up before printing: that's the one check not to skip.
+   - **Don't re-view what hasn't changed.** After a small edit, a close-up
+     of the changed area is enough during iteration. The final full sheet
+     is still required after the last edit.
+   - **PNG only, never JPEG.** Compression artifacts can hide thin edges.
+   - Ghost bodies (`%`) can hide what's behind them in a close-up;
+     comment them out for that render if they get in the way.
 3. **Compare against reality.** Check the proportions against the real
    object or reference photo, not only against the code. A model can be
    dimensionally "correct" and still look wrong or not fit. Checking one

@@ -73,7 +73,7 @@ throughput.
    (API price 5× Sol, 100× Luna). Use it only when the task's difficulty is
    the reasoning itself — tricky algorithm/math design, a subtle root cause
    Luna and Sol have both failed to find, a correctness argument, or complex
-   CAD geometry Sol has failed on (see "3D printing and computer use"). Not for
+   CAD geometry Opus has failed on (see "3D printing and computer use"). Not for
    terminal-heavy, computer-use, bulk, or long-context work: published
    numbers show Opus 5.5 ahead of Astra on Terminal-Bench 4.0 and OSWorld
    2.0, and every GPT tier already has a ~1M context.
@@ -149,7 +149,7 @@ throughput.
   work needing Claude-side tools, cross-family review of GPT output on
   high-risk work (rule 9), optional second opinions, and orta fallback when
   GPT is failing. Quota-gated by the snapshot file. Not for CAD geometry
-  (see "3D printing and computer use").
+  (Opus models parts itself; see "3D printing and computer use").
 - **Sol** (Codex CLI) — precision execution once a complete spec exists:
   hard implementation, migrations, test-writing against a defined contract.
 - **Astra** (Codex CLI) — hard reasoning only, per rule 6.
@@ -180,37 +180,51 @@ through Bambu Studio) is in the `3d-print-workflow` skill, so load both.
 
 **CAD modelling is not basit work.** Writing the code is easy. Getting the
 geometry right (orientation, which face a feature sits on, fit with the real
-object) is the hard part, and it is where models differ most. Classify a
-new functional part as at least orta.
+object) is the hard part, and it is where models differ most.
+
+**Opus models single parts itself. This is a deliberate exception to rule 2.**
+A single part is 50–200 lines of OpenSCAD. A spec precise enough for Sol
+(every dimension, orientation, which face each feature sits on) is most of
+that work already. Opus has to review the renders either way, and each
+fix-and-redispatch round costs Opus another spec plus another review. So
+delegating a single part usually costs Opus more tokens than writing it,
+and Opus also scores highest on CAD. Hobby printing volume is low (a few
+parts a day), so Opus quota isn't the bottleneck here the way it is in
+coding work.
 
 | Step | Who | Why |
 |---|---|---|
-| Pin down dimensions, purpose, printer, material; write the geometry spec | **Opus** inline | It's judgment, and a wrong mating dimension wastes a whole print. |
-| Write/iterate CAD code (OpenSCAD default) | **Sol** | Close to Opus on CAD code, and runs on GPT quota. |
-| Simple parametric parts (box, spacer, bracket, plate), bulk variants, parameter tweaks | **Luna** | Cheap; fine when the geometry is already fully specified. |
-| Complex geometry Sol has failed on twice, or reconstruction from photos/multiple views | **Astra**, attaching reference images with `-i` | Rule 6 exception: here the difficulty is the spatial reasoning itself. |
-| Final visual review of rendered previews against the reference | **Opus** (reads the PNGs) | Top CAD score, and it's the judgment gate before plastic is used. |
-| Slicing via CLI, mesh checks, file work | **Luna** or inline | Mechanical. |
+| Pin down dimensions, purpose, printer, material | **Opus** inline | Judgment. A wrong mating dimension wastes a whole print. |
+| Model a single part, iterate on feedback, review renders | **Opus** inline | See above. |
+| Bulk variants of a finished model (sizes, names, sets), pure parameter changes | **Luna** (Sol if the variant logic is fiddly) | Mechanical once the model exists; spec is short. |
+| Modelling while Opus quota is high (5h ≥ 70% or 7d ≥ 80% in `~/.claude/rate-limit-status.json`) | **Sol**, with the render loop below; Opus reviews the final sheet only | Preserves Opus quota for judgment. |
+| Complex geometry Opus has failed on twice, or reconstruction from photos/multiple views | **Astra**, attaching reference images with `-i` | Rule 6 exception: the difficulty is the spatial reasoning itself. |
+| Slicing via CLI, mesh checks, file work | inline (they're one command) or **Luna** in bulk | Mechanical. |
 | Anything on screen (Bambu Studio, Bambu Handy, other GUI apps) | **Opus**, top-level session only | See below. |
 
-- **Don't route CAD geometry to Sonnet.** On BenchCAD, Sonnet 5 scored well
-  below every other tier (below Luna), so it's the wrong Claude-side
-  fallback for modelling. If GPT is failing, Opus does the CAD itself, kept
-  lean. Haiku is never used for CAD.
-- **Every CAD dispatch spec must include a render loop:** the executor
-  renders PNG previews from at least 4 angles (including underneath), checks
-  them itself, runs the mesh check (watertight, extents, number of
-  connected bodies), and fixes errors before reporting. The dispatch returns
-  the `.scad`/`.py`, the STL/3MF and the PNG paths. With a render loop,
-  correctness goes up sharply without a stronger model, so this is cheaper
-  than escalating a tier. For reference photos, attach them to the spec with
-  `codex exec -i <image> ...`.
+- **Don't route CAD geometry to Sonnet or Haiku.** On BenchCAD, Sonnet 5
+  scored well below every other tier (below Luna).
+- **Every CAD dispatch to a GPT tier must include a render loop:** the
+  executor runs the mesh check (watertight, extents, number of connected
+  bodies), renders the contact sheet with `render_sheet.py`, looks at it
+  itself (Codex can view images), fixes errors, and only then reports back
+  with the `.scad`, the STL/3MF and the sheet path. A render loop raises
+  correctness sharply without a stronger model, so it's cheaper than moving
+  up a tier. Attach reference photos with `codex exec -i <image> ...`.
 - **Known failure modes to check in review:** GPT models tend to research
   dimensions well but get orientation wrong (the part extruded on its side,
   a rib floating off the base). Claude models tend to get the geometry right
   but guess real-world dimensions instead of looking them up. So check
   orientation and connectivity on GPT output, and check sourced dimensions
-  on Claude output.
+  on Claude output (including Opus's own).
+- **Image budget: save tokens where it doesn't cost quality.** Details are in
+  `3d-print-workflow`, step 4. In short: run the numeric checks before
+  looking at any image; iterate on a draft sheet (~2.6K tokens); use the
+  full-resolution sheet (~4.8K) only for the final check before printing;
+  look closer with a targeted close-up instead of enlarging everything; don't
+  re-render or re-view unchanged geometry. Never go below what the final
+  check needs: the final sheet, plus a close-up of every feature that must
+  fit something, is mandatory before a print.
 - **Computer use stays on the top-level Opus session.** The `computer-use`
   MCP server runs only in an interactive session (not `claude -p`, and not
   in `codex exec`), and the worker presets don't have it. It also holds one
@@ -218,7 +232,8 @@ new functional part as at least orta.
   Screenshots are expensive on Opus's quota, so: do everything possible from
   the shell first (`open -a "Bambu Studio" file.3mf`, the Bambu Studio CLI
   for slicing), keep GUI steps to the ones with no CLI, and take few,
-  deliberate screenshots.
+  deliberate screenshots. Don't skip the screenshot that confirms the
+  settings before Print; that one is the safety check.
 - **Physical actions need explicit user confirmation, every time.** Starting
   a print, cancelling one, or changing printer settings: summarise and wait
   for a yes. No delegate may start a print. Never change printer network or
@@ -232,8 +247,10 @@ new functional part as at least orta.
   GrandpaCAD (real user prompts): OpenSCAD had 3–4× fewer code errors than
   build123d/CadQuery, and public 3D leaderboards didn't predict real
   printable-model quality. XDA (Jun 2026, Opus 4.8 vs GPT-5.5): the
-  opposite failure modes above. Revisit when gpt-6 CAD numbers appear, or
-  if Sol's CAD output underperforms in practice.
+  opposite failure modes above. Image costs: Claude vision docs (Opus 4.7+
+  high-resolution tier: 28×28 px per visual token, long edge ≤ 2576 px,
+  ≤ 4784 tokens per image before downscaling). Revisit if Opus quota runs
+  out in practice, or when gpt-6 CAD numbers appear.
 
 ## Continuity under quota exhaustion
 

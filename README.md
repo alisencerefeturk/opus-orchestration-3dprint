@@ -33,7 +33,9 @@ The `3d-print-workflow` skill covers the whole pipeline:
 5. **Slice** with the Bambu Studio CLI where possible, or open the file in Bambu Studio.
 6. **Print** through the Bambu Studio GUI with computer use. Claude **always asks you to confirm** (printer, plate, filament, time, grams) before it presses Print, and never changes printer network or security settings.
 
-Model routing for 3D work (section "3D printing and computer use" in `SKILL.md`): Opus pins down dimensions and reviews the renders; Sol writes the CAD code with a render-and-self-check loop; Luna handles simple parts and variants; Astra is reserved for complex geometry Sol fails on; Sonnet isn't used for CAD geometry (it scored far lower on BenchCAD); computer use runs only in the main Opus session. The benchmark data behind this is cited in the skill.
+Model routing for 3D work (section "3D printing and computer use" in `SKILL.md`): **Opus models single parts itself**, because a spec precise enough to delegate is most of the work already and Opus scores highest on CAD. Luna/Sol make bulk variants, Sol takes over modelling when Opus quota runs high, and Astra is reserved for geometry Opus fails on. Sonnet isn't used for CAD (it scored far lower on BenchCAD), and computer use runs only in the main Opus session. The benchmark data behind this is cited in the skill.
+
+**Image budget:** `render_sheet.py` renders four labelled views into one PNG, sized to Claude's full-resolution limit. The flow is numeric mesh checks first, a draft sheet (~2.6K tokens) while iterating, and close-ups only where a detail needs them. A full-resolution sheet (~4.8K tokens) plus close-ups of every fitting feature are mandatory before a print, so quality isn't traded for tokens.
 
 The tier labels in the skill are Turkish: **basit** = simple, **orta** = medium, **zor** = hard.
 
@@ -42,6 +44,7 @@ The tier labels in the skill are Turkish: **basit** = simple, **orta** = medium,
 ```
 skills/opus-orchestration/SKILL.md   the routing policy (loaded as a Claude Code skill)
 skills/3d-print-workflow/SKILL.md    3D modelling → verification → slicing → printing workflow
+skills/3d-print-workflow/render_sheet.py  labelled 4-view preview sheet, sized for Claude's vision limits
 agents/sonnet-worker.md              Sonnet preset
 agents/haiku-worker.md               Haiku fallback preset
 statusline/statusline.sh             statusLine hook that snapshots quota usage
@@ -57,7 +60,7 @@ For 3D printing, also:
 - **macOS** (computer use in the Claude Code CLI is macOS-only);
 - [OpenSCAD](https://openscad.org) (`brew install --cask openscad`);
 - [Bambu Studio](https://bambulab.com/en/download/studio), signed in and connected to your printer;
-- `trimesh` for mesh checks (`pip3 install trimesh`);
+- `trimesh` and `pillow` for mesh checks and preview sheets (`pip3 install trimesh pillow`);
 - computer use enabled once: in Claude Code run `/mcp`, select `computer-use`, choose **Enable**, then grant Accessibility and Screen Recording when macOS asks.
 
 ### Option A: let Claude Code install it (easiest)
@@ -70,7 +73,7 @@ Install the opus-orchestration-3dprint skills from https://github.com/alisencere
 1. Clone the repo to ~/opus-orchestration-3dprint. If that folder already exists and is this repo, run `git pull` in it instead.
 2. Run ./install.sh from the repo. It symlinks the two skills, the agent presets, and statusline.sh into ~/.claude and backs up any existing files first.
 3. Add "statusLine": {"type": "command", "command": "~/.claude/statusline.sh"} to ~/.claude/settings.json. Merge it and keep every other setting as is. If a different statusLine is already configured, show it to me and ask before replacing it.
-4. Check the prerequisites and report each one: `python3 --version`, `codex --version`, whether Codex is logged in (`codex login status`), whether OpenSCAD is installed (`openscad --version` or /Applications/OpenSCAD.app), whether Bambu Studio is in /Applications, and whether `python3 -c "import trimesh"` works. If something is missing, tell me how to fix it, but don't install it yourself.
+4. Check the prerequisites and report each one: `python3 --version`, `codex --version`, whether Codex is logged in (`codex login status`), whether OpenSCAD is installed (`openscad --version` or /Applications/OpenSCAD.app), whether Bambu Studio is in /Applications, and whether `python3 -c "import trimesh, PIL"` works. If something is missing, tell me how to fix it, but don't install it yourself.
 5. Remind me to enable computer use once via `/mcp` → computer-use → Enable (it asks for Accessibility and Screen Recording permissions).
 6. Tell me to restart Claude Code, then summarize what was installed and anything I still need to do by hand.
 ````
