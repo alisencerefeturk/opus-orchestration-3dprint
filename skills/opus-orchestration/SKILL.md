@@ -194,7 +194,7 @@ coding work.
 
 | Step | Who | Why |
 |---|---|---|
-| Pin down dimensions, purpose, printer, material | **Opus** inline | Judgment. A wrong mating dimension wastes a whole print. |
+| Intake (task, printer, project details, brief; `3dprint` section 1) | **Opus** inline | It's a conversation, and delegates can't talk to the user. A wrong mating dimension wastes a whole print. |
 | Model a single part, iterate on feedback, review renders | **Opus** inline | See above. |
 | Bulk variants of a finished model (sizes, names, sets), pure parameter changes | **Luna** (Sol if the variant logic is fiddly) | Mechanical once the model exists; spec is short. |
 | Modelling while Opus quota is high (5h ≥ 70% or 7d ≥ 80% in `~/.claude/rate-limit-status.json`) | **Sol**, with the render loop below; Opus reviews the final sheet only | Preserves Opus quota for judgment. |
@@ -218,7 +218,7 @@ coding work.
   orientation and connectivity on GPT output, and check sourced dimensions
   on Claude output (including Opus's own).
 - **Image budget: save tokens where it doesn't cost quality.** Details are in
-  `3dprint`, step 4. In short: run the numeric checks before
+  `3dprint`, section 4. In short: run the numeric checks before
   looking at any image; iterate on a draft sheet (~2.6K tokens); use the
   full-resolution sheet (~4.8K) only for the final check before printing;
   look closer with a targeted close-up instead of enlarging everything; don't

@@ -19,48 +19,92 @@ file covers what to do; that one covers who does it. The user may start a
 task with just `/3dprint`, so don't assume the policy is already in
 context.
 
-## 0. Printer profile (first use only)
+## 1. Intake: task → printer → project details → brief
 
-Keep the user's setup in `~/.claude/3d-printer-profile.md` so they aren't
-asked the same questions every time. On the first 3D task, if the file is
-missing:
+When the skill is invoked, run this intake before any modelling. The main
+(Opus) session runs it itself: it is a conversation, and delegates can't
+talk to the user. Speak the user's language. Use the `AskUserQuestion` tool
+for choices: up to 4 questions per call, the likely answer first and marked
+as recommended, and the user can always type their own answer. Put open
+questions (measurements, descriptions) in plain text.
 
-1. Check tools once and tell the user what's missing (don't install on your
-   own): OpenSCAD (`openscad --version` or `/Applications/OpenSCAD.app`),
-   `python3 -c "import trimesh, scipy, PIL"`, Bambu Studio in
-   `/Applications`.
-2. Ask for the printer model, nozzle size, AMS (yes/no, which filaments in
-   which slots), usual filament, and, if they want CLI slicing, where their
-   exported preset JSONs are.
-3. Write the answers to the profile file. Update it when the user mentions a
-   change (new filament in a slot, new nozzle, new printer).
+Most failed prints come from a wrong assumption, not bad code. So the goal
+of the intake is to have no unknowns that would change the geometry, while
+asking as little as possible: skip anything the user already said, and
+anything with a safe default (state that default in the brief instead).
 
-Read the profile at the start of every later 3D task, and only ask about
-what it doesn't cover.
+### 1.1 What's the task?
 
-## 1. Pin down the request before modelling
+If `/3dprint` came with a description, classify it and skip this question.
+Otherwise ask what they want to do, with these choices:
 
-Most failed prints come from a wrong assumption, not bad code. Before writing
-any geometry, get or state these explicitly (ask only for what can't be
-inferred; state assumptions for the rest):
+- **New part** (functional: holder, bracket, hook, adapter, replacement part)
+- **Decorative / figure / gift** (looks matter more than fit)
+- **Enclosure / box** (for electronics or other objects)
+- **Modify or print an existing file** (STL/3MF/MakerWorld model: scale,
+  change, combine, or just slice and print)
+- **Failed print / fix** (diagnose a print that went wrong)
 
-- **Real-world dimensions in mm.** If the part must fit something (a phone,
-  a pipe, a screw, a shelf), get the measured size of that thing. Never guess
-  a mating dimension. If the user gives a photo, ask for one reference
-  measurement to scale from.
-- **Purpose and load:** decorative, functional, snap-fit, outdoor, food
-  contact, hot environment. This decides material and wall thickness.
-- **Printer and filament** (from the profile, step 0): model (A1 mini / A1 / P1S / P2S / X1C / H2D …),
-  nozzle (default 0.4 mm), AMS or not, filament type and colours. Check the
-  printer's build volume before designing: A1 mini is 180×180×180 mm, A1 and
-  the P1/X1 series are 256×256×256 mm; look up newer models rather than
-  assuming.
-- **Multi-colour:** if wanted, each colour must be a separate body (exported
-  as a multi-part 3MF), not a texture.
+For generic objects (a standard hook, a common enclosure, a known phone
+stand), mention that MakerWorld or Printables may already have one. Let the
+user decide.
 
-Ready-made models: for generic objects (a standard hook, a common enclosure,
-a known phone stand), a quick look on MakerWorld or Printables can beat
-designing from scratch. Mention it; let the user decide.
+### 1.2 Which printer? (asked once, then confirmed)
+
+The setup lives in `~/.claude/3d-printer-profile.md`.
+
+- **No profile yet (first use):**
+  1. Check the tools and say what's missing. Don't install anything
+     yourself. Tools: OpenSCAD (`openscad --version` or
+     `/Applications/OpenSCAD.app`), `python3 -c "import trimesh, scipy,
+     PIL"`, Bambu Studio in `/Applications`.
+  2. Ask: printer model (A1 mini / A1 / P1S / P2S / X1C / H2D / other),
+     nozzle (default 0.4 mm), AMS (and which filaments are in which slots),
+     usual filament, and where project files should go (default
+     `~/3d-prints/`). If they want CLI slicing, also ask where their
+     exported preset JSONs are.
+  3. Write the answers to the profile. Include the build volume: A1 mini is
+     180×180×180 mm; A1 and the P1/X1 series are 256×256×256 mm. Look up
+     other models rather than assuming. If they own several printers, list
+     each one.
+- **Profile exists:** don't re-ask. Show one line and confirm it, e.g.
+  "Is this for the A1 (0.4 nozzle, AMS: PLA white/black/red, PETG grey)?".
+  Choices: yes / a different printer from the profile / the filament or
+  nozzle changed. Update the profile on any change.
+
+### 1.3 Project details (depends on the task)
+
+Ask only what's still unknown after 1.1–1.2, in at most two rounds.
+Measured numbers beat descriptions: ask for caliper measurements, or a
+photo with a ruler or a known object in it for scale. **Never guess a
+dimension of something the part must fit.**
+
+| Task | What to find out |
+|---|---|
+| New part | What it attaches to or holds, and that object's key measurements. How it mounts (screw size, adhesive, clip, press fit). Load and environment (indoor, outdoor/sun, heat, water, food contact). Any size limits. How many. |
+| Decorative | Target size (height or longest side). Colours (AMS/multi-colour means separate bodies). Detail vs print time. Whether supports are OK. Reference image, if any. |
+| Enclosure | Inner size of the contents (board + tallest part + cables). Openings (ports, buttons, display, LEDs), ventilation, how the lid closes (snap, screws, slide), mounting. |
+| Existing file | The file (path or MakerWorld/Printables link), what should change, the target size. If it's someone else's model, whether its licence allows remixing. |
+| Failed print | Photo of the failure, filament, which layer or height it failed at, the slicer settings or the `.gcode.3mf`, and what changed since the last good print. |
+
+The material follows from load and environment (details in section 3): PLA
+indoors, PETG for tougher parts or some heat, ASA/ABS outdoors (enclosed
+printer), TPU for flexible parts. Suggest one and say why; don't ask the
+user to pick blind. Never claim a print is food-safe.
+
+### 1.4 Brief and confirmation
+
+Summarise the job in a short brief and ask for a yes before modelling:
+purpose, printer + nozzle + filament, key dimensions (marking which the
+user measured and which are assumed), mounting/fit, colours, orientation
+on the bed, anything deliberately left at a default. Save it as `brief.md`
+in the project folder (`<projects dir>/<short-name>/`). All the job's files
+(model code, STL/3MF, renders, sliced file) go in that folder too. Later
+iterations update the brief rather than starting over.
+
+Then go on from the right section: new parts, decorative models and
+enclosures from section 2; an existing file from section 4 (verify) or 5
+(slice); a failed print by diagnosing first, then 7 (iterate).
 
 ## 2. Model as code, parametric
 
@@ -237,6 +281,6 @@ firmware update or unexpected dialog.
 ## 7. Iterate
 
 After a test print, the user will report things like "too tight", "broke at
-X" or "warped". Adjust the named parameters, re-verify (step 4) and re-slice.
+X" or "warped". Adjust the named parameters, re-verify (section 4) and re-slice.
 Keep a short changelog comment at the top of the model file (what changed
 and why), so the next iteration starts from known facts.

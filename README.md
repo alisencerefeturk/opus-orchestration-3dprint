@@ -24,10 +24,9 @@ Key ideas:
 
 ## 3D printing
 
-The `3dprint` skill covers the whole pipeline. Start a task with **`/3dprint`** followed by what you want (e.g. `/3dprint a wall hook for a 12 mm towel rail, PETG`), or just describe a print job and Claude loads it automatically. It loads the routing policy by itself, so `/3dprint` is the only command you need.
+The `3dprint` skill covers the whole pipeline. Type **`/3dprint`** on its own and Claude starts by asking what you want to make, or add the task right away (e.g. `/3dprint a wall hook for a 12 mm towel rail, PETG`) to skip that question. Describing a print job without the command works too; Claude loads the skill automatically. It loads the routing policy by itself, so `/3dprint` is the only command you need.
 
-0. **Printer profile:** on first use Claude checks the tools, asks once about your printer, nozzle, AMS and filaments, and saves the answers to `~/.claude/3d-printer-profile.md`.
-1. **Clarify the request:** real dimensions in mm (never guessed for parts that must fit something), purpose, printer model and build volume, filament, colours.
+1. **Intake:** Claude asks what the job is (new part, decorative, enclosure, existing file, failed print). It asks about your printer once (model, nozzle, AMS slots, filaments), saves that to `~/.claude/3d-printer-profile.md`, and on later jobs only asks "for this printer?". Then it asks the project questions for that kind of job (measurements of what the part must fit, mounting, environment, colours…), skipping anything you already said. It writes a short `brief.md` for you to confirm before any modelling starts.
 2. **Model as parametric code:** OpenSCAD by default (models make 3–4× fewer code errors in it than in build123d/CadQuery), build123d only when needed.
 3. **Design for FDM:** wall thickness, overhangs, hole clearances, orientation for strength, first-layer details.
 4. **Verify before printing:** mesh check (watertight, size, no floating pieces) and rendered previews from several angles, compared against the real object.
