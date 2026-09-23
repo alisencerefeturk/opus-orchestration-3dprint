@@ -1,123 +1,152 @@
 # opus-orchestration-3dprint
 
-A [Claude Code](https://claude.com/claude-code) skill set for running a **Claude Pro + ChatGPT Plus** stack cost-effectively (Opus orchestrates, cheaper models do the work), **extended for 3D printing**: designing printable models as code, checking them, slicing, and sending them to a Bambu Lab printer through Bambu Studio with Claude's computer use.
+3D yazıcı için model tasarlatıp bastırmaya yönelik bir [Claude Code](https://claude.com/claude-code) skill seti. Claude istediğin parçayı araştırıyor, kodla modelliyor, kontrol ediyor, diliyor ve Bambu Studio üzerinden Bambu Lab yazıcına gönderiyor. Baskıya basmadan önce her zaman senden onay alıyor.
 
-This is a 3D-printing variant of [opus-orchestration](https://github.com/alisencerefeturk/opus-orchestration). Install one or the other, not both: they use the same skill name.
+Arka planda **Claude Pro + ChatGPT Plus** ikilisini verimli kullanan bir orkestrasyon var: Opus yönetiyor, işin büyük kısmını daha ucuz modeller yapıyor.
 
-> **Claude Code only.** This needs Claude Code as the host. It won't work if you load it in Codex, Antigravity, or other agents. See [Compatibility](#compatibility).
+> **Sadece Claude Code'da çalışır.** Codex, Cursor, Antigravity gibi başka ajanlarda çalışmaz. Ayrıntı için [Uyumluluk](#uyumluluk) bölümüne bak.
 
-| Tier | Where it runs | Role |
-|---|---|---|
-| **Opus** | main Claude Code session | Classifies tasks, writes specs, synthesizes results, models 3D parts, drives the screen. The only dispatcher. |
-| **Luna** (`gpt-6-luna`) | Codex CLI | Default executor for simple and medium work: bulk, research, exploration, scoped implementation. |
-| **Sol** (`gpt-6-sol`) | Codex CLI | Precision execution against a complete spec. |
-| **Astra** (`gpt-6-astra`) | Codex CLI | Hard reasoning only. It burns quota fastest. |
-| **Sonnet** | `sonnet-worker` preset | Claude-side tools, second-opinion review, fallback when GPT fails. |
-| **Haiku** | `haiku-worker` preset | Fallback only, for simple work when GPT is unavailable. |
+## Kurulum
 
-Key ideas:
+### 1. Yol: Claude kursun (önerilen)
 
-- **Delegation is one level deep.** Only Opus dispatches work, so every call is auditable.
-- **Claude quota is read live.** `statusline.sh` writes it to `~/.claude/rate-limit-status.json` on every message, and Sonnet use is gated on it.
-- **Review family follows risk.** High-risk changes are reviewed by the other model family; routine work relies on tests and CI (rule 9, backed by Greptile's 2026 cross-family data).
-- **Routing follows data.** It is based on published benchmarks and a small Luna-vs-Sonnet head-to-head (see "Benchmark basis" and rule 5 in `SKILL.md`).
+Claude Code'u aç ve şu mesajı sohbete yapıştır:
 
-## 3D printing
-
-The `3dprint` skill covers the whole pipeline. Type **`/3dprint`** on its own and Claude starts by asking what you want to make, or add the task right away (e.g. `/3dprint a wall hook for a 12 mm towel rail, PETG`) to skip that question. Describing a print job without the command works too; Claude loads the skill automatically. It loads the routing policy by itself, so `/3dprint` is the only command you need.
-
-1. **Intake and research:** Claude works out the job (new part, decorative, enclosure, existing file, failed print). It asks about your printer once (model, nozzle, AMS slots, filaments), saves that to `~/.claude/3d-printer-profile.md`, and on later jobs only asks "for this printer?". Then it **researches before asking**: it sends parallel research lanes (Luna with live web search, Sonnet where needed) to look up everything named in your prompt. That covers the device the part fits (e.g. a keyboard's keycap profile, row heights and stem), the printer's specs, official vector sources for artwork, standard-part dimensions, and printing pitfalls for that kind of part. Each lane returns a fact sheet with sources. Claude then asks only what research couldn't settle, such as your own measurements, and writes a short `brief.md` that lists each dimension with its source.2. **Model as parametric code:** OpenSCAD by default (models make 3–4× fewer code errors in it than in build123d/CadQuery), build123d only when needed.
-3. **Design for FDM:** wall thickness, overhangs, hole clearances, orientation for strength, first-layer details.
-4. **Verify before printing:** mesh check (watertight, size, no floating pieces) and rendered previews from several angles, compared against the real object.
-5. **Slice** with the Bambu Studio CLI where possible, or open the file in Bambu Studio.
-6. **Print** through the Bambu Studio GUI with computer use. Claude **always asks you to confirm** (printer, plate, filament, time, grams) before it presses Print, and never changes printer network or security settings.
-
-Model routing for 3D work (section "3D printing and computer use" in `SKILL.md`): **Opus models single parts itself**, because a spec precise enough to delegate is most of the work already and Opus scores highest on CAD. Luna/Sol make bulk variants, Sol takes over modelling when Opus quota runs high, and Astra is reserved for geometry Opus fails on. Sonnet isn't used for CAD (it scored far lower on BenchCAD), and computer use runs only in the main Opus session. The benchmark data behind this is cited in the skill.
-
-**Image budget:** `render_sheet.py` renders four labelled views into one PNG, sized to Claude's full-resolution limit. The flow is numeric mesh checks first, a draft sheet (~2.6K tokens) while iterating, and close-ups only where a detail needs them. A full-resolution sheet (~4.8K tokens) plus close-ups of every fitting feature are mandatory before a print, so quality isn't traded for tokens.
-
-The tier labels in the skill are Turkish: **basit** = simple, **orta** = medium, **zor** = hard.
-
-## Contents
-
-```
-skills/opus-orchestration/SKILL.md   the routing policy (loaded as a Claude Code skill)
-skills/3dprint/SKILL.md              3D modelling → verification → slicing → printing workflow
-skills/3dprint/render_sheet.py       labelled 4-view preview sheet, sized for Claude's vision limits
-agents/sonnet-worker.md              Sonnet preset
-agents/haiku-worker.md               Haiku fallback preset
-statusline/statusline.sh             statusLine hook that snapshots quota usage
-install.sh                           symlinks everything into ~/.claude
+```text
+Şu skill'i benim için kur: https://github.com/alisencerefeturk/opus-orchestration-3dprint
+Repoyu ~/opus-orchestration-3dprint klasörüne klonla ve README'deki "Kurulum adımları (Claude için)" bölümünü sırayla uygula.
 ```
 
-## Install
+Claude repoyu indirir, skill'leri kurar, eksik programları kontrol eder ve senin elle yapman gerekenleri söyler. Bitince Claude Code'u kapatıp yeniden aç.
 
-Requirements: Claude Code on a Pro or Max plan (Pro/Max accounts are the only ones that expose `rate_limits`, and computer use needs Pro/Max too), [Codex CLI](https://github.com/openai/codex) signed in with ChatGPT, and Python 3.
+### 2. Yol: Claude kuramazsa (elle kurulum)
 
-For 3D printing, also:
-
-- **macOS** (computer use in the Claude Code CLI is macOS-only);
-- [OpenSCAD](https://openscad.org) (`brew install --cask openscad`);
-- [Bambu Studio](https://bambulab.com/en/download/studio), signed in and connected to your printer;
-- `trimesh`, `scipy` and `pillow` for mesh checks and preview sheets (`pip3 install trimesh scipy pillow`);
-- computer use enabled once: in Claude Code run `/mcp`, select `computer-use`, choose **Enable**, then grant Accessibility and Screen Recording when macOS asks.
-
-### Option A: let Claude Code install it (easiest)
-
-Paste this into a Claude Code session:
-
-````text
-Install the opus-orchestration-3dprint skills from https://github.com/alisencerefeturk/opus-orchestration-3dprint for me:
-
-1. Clone the repo to ~/opus-orchestration-3dprint. If that folder already exists and is this repo, run `git pull` in it instead.
-2. Run ./install.sh from the repo. It symlinks the two skills, the agent presets, and statusline.sh into ~/.claude and backs up any existing files first.
-3. Add "statusLine": {"type": "command", "command": "~/.claude/statusline.sh"} to ~/.claude/settings.json. Merge it and keep every other setting as is. If a different statusLine is already configured, show it to me and ask before replacing it.
-4. Check the prerequisites and report each one: `python3 --version`, `codex --version`, whether Codex is logged in (`codex login status`), whether OpenSCAD is installed (`openscad --version` or /Applications/OpenSCAD.app), whether Bambu Studio is in /Applications, and whether `python3 -c "import trimesh, scipy, PIL"` works. If something is missing, tell me how to fix it, but don't install it yourself.
-5. Confirm that the skills are linked globally (`ls -l ~/.claude/skills/3dprint ~/.claude/skills/opus-orchestration`), so `/3dprint` works from any folder. Remind me that the computer use switch is per project: in each folder where Claude should drive Bambu Studio, I run `/mcp` → computer-use → Enable once (the first time, it asks for Accessibility and Screen Recording permissions).
-6. Tell me to restart Claude Code, then summarize what was installed and anything I still need to do by hand.
-````
-
-### Option B: manual
+Terminalde:
 
 ```bash
-git clone https://github.com/alisencerefeturk/opus-orchestration-3dprint.git
-cd opus-orchestration-3dprint
+git clone https://github.com/alisencerefeturk/opus-orchestration-3dprint.git ~/opus-orchestration-3dprint
+cd ~/opus-orchestration-3dprint
 ./install.sh
 ```
 
-`install.sh` symlinks the files into `~/.claude`, moving any existing files to `~/.claude/backups/opus-orchestration-<timestamp>/` first. Because they are symlinks, edits from either side show up in `git diff`, and `git pull` updates the installed skills. Don't delete or move the cloned folder: the installed skills point to it.
-
-**It installs globally.** `~/.claude/skills/` is your user-level skills folder, so `/3dprint` works in every project and folder, not just this repo. One exception: Claude Code stores the computer use switch per project. The first time Claude needs to drive Bambu Studio in a new folder, run `/mcp` → `computer-use` → **Enable** there once. Everything else (modelling, checks, slicing via the CLI) works without it.
-
-Then enable the status line in `~/.claude/settings.json`:
+Sonra `~/.claude/settings.json` dosyasına şu satırı ekle. Dosyada başka ayarlar varsa onlara dokunma, bunu yanlarına ekle:
 
 ```json
 "statusLine": { "type": "command", "command": "~/.claude/statusline.sh" }
 ```
 
-## Compatibility
+Eksik programlar varsa [Gereksinimler](#gereksinimler) bölümündeki komutlarla kur, sonra Claude Code'u yeniden başlat.
 
-| Host | Works? | Why |
+### Kurulum adımları (Claude için)
+
+> Bu bölüm, 1. yoldaki mesajla kurulumu yapan Claude içindir.
+
+1. Repoyu `~/opus-orchestration-3dprint` klasörüne klonla. Klasör zaten varsa ve bu repoysa, içinde `git pull` çalıştır.
+2. Repo klasöründe `./install.sh` çalıştır. Script iki skill'i, ajan ayarlarını ve `statusline.sh` dosyasını `~/.claude` altına bağlar. Önceden var olan dosyaları önce yedekler.
+3. `~/.claude/settings.json` dosyasına `"statusLine": {"type": "command", "command": "~/.claude/statusline.sh"}` ekle. Mevcut ayarları koru, sadece bunu ekle. Başka bir statusLine zaten tanımlıysa kullanıcıya göster ve değiştirmeden önce sor.
+4. Gereksinimleri tek tek kontrol et ve her birinin sonucunu bildir:
+   - `python3 --version`
+   - `codex --version` ve `codex login status`
+   - OpenSCAD: `openscad --version` ya da `/Applications/OpenSCAD.app`
+   - Bambu Studio: `/Applications/BambuStudio.app`
+   - `python3 -c "import trimesh, scipy, PIL"`
+
+   Eksik olan varsa nasıl kurulacağını söyle, ama kendin kurma.
+5. Skill'lerin global kurulduğunu doğrula: `ls -l ~/.claude/skills/3dprint ~/.claude/skills/opus-orchestration`.
+6. Kullanıcıya iki şeyi hatırlat:
+   - Computer use ayarı proje başına saklanır. Claude'un Bambu Studio'yu kullanacağı her klasörde bir kez `/mcp` → `computer-use` → **Enable** yapılmalı. İlk seferde macOS, Erişilebilirlik (Accessibility) ve Ekran Kaydı (Screen Recording) izni ister.
+   - Claude Code yeniden başlatılmalı.
+7. Neyin kurulduğunu ve kullanıcının elle yapması gereken her şeyi Türkçe olarak kısaca özetle.
+
+## Nasıl kullanılır
+
+Kurulumdan sonra **herhangi bir klasörde** Claude Code'u açıp şunu yazman yeterli:
+
+```text
+/3dprint
+```
+
+Claude ne yapmak istediğini sorarak başlar. İsteğini doğrudan komutla birlikte de yazabilirsin:
+
+```text
+/3dprint 12 mm havlu çubuğuna takılan bir duvar askısı, PETG
+/3dprint Aula F75 Max klavyem için 1-5 tuşlarına CS2 temalı keycap
+/3dprint masadaki kulaklık için alta vidalanan bir askı, ölçüleri aşağıda
+```
+
+Komutu yazmadan bir baskı işi anlatırsan da Claude skill'i kendisi yükler.
+
+### Claude bir iş gelince ne yapar?
+
+1. **İşi anlar.** Yeni parça mı, dekoratif obje mi, kutu mu, var olan bir dosya mı, başarısız bir baskı mı?
+2. **Yazıcını öğrenir.** İlk seferde yazıcı modelini, nozulu, AMS'de hangi yuvada hangi filament olduğunu sorar ve `~/.claude/3d-printer-profile.md` dosyasına kaydeder. Sonraki işlerde sadece "Bu iş şu yazıcı için mi?" diye onaylatır.
+3. **Önce araştırır.** Mesajında adı geçen her şey için paralel araştırma ajanları çalıştırır (Luna canlı web aramasıyla, gerekirse Sonnet):
+   - parçanın takılacağı cihazın ölçüleri ve standartları (örneğin bir klavyenin tuş profili, sıra yükseklikleri, stem tipi);
+   - yazıcının özellikleri;
+   - logo veya görseller için resmi vektör kaynakları;
+   - vida, mıknatıs gibi standart parçaların ölçüleri;
+   - o tür parçaları basarken bilinen sorunlar.
+
+   Her ajan kaynaklarıyla birlikte bir bilgi tablosu getirir.
+4. **Sadece gerekeni sorar.** Araştırmanın netleştiremediği şeyleri sorar, örneğin senin kumpasla ölçmen gereken bir ölçüyü.
+5. **Özet çıkarır.** Her ölçünün kaynağını gösteren kısa bir `brief.md` yazar: resmi, senin ölçtüğün ya da varsayım. Senden onay alınca modellemeye başlar.
+6. **Modeller ve kontrol eder.** Model OpenSCAD koduyla yazılır. Sonra mesh kontrolü yapılır (sızdırmazlık, ölçü, kopuk parça, tablanın altına taşma) ve model birkaç açıdan render edilip gerçek nesneyle karşılaştırılır.
+7. **Dilimler ve basar.** Bambu Studio'yu kullanır. **Baskıya basmadan önce** yazıcıyı, plakayı, filamenti, süreyi ve gramajı özetleyip senden onay ister. Yazıcının ağ ve güvenlik ayarlarına asla dokunmaz.
+
+Tüm dosyalar proje klasöründe toplanır (varsayılan `~/3d-prints/<proje-adı>/`): araştırma notları, model kodu, STL/3MF dosyaları, render'lar ve dilimlenmiş dosya.
+
+## Gereksinimler
+
+- Claude Code, **Pro veya Max** planla. Computer use ve kota takibi bunu gerektiriyor.
+- **macOS**. Claude Code'da computer use sadece macOS'ta var.
+- [Codex CLI](https://github.com/openai/codex), ChatGPT hesabıyla giriş yapılmış. Codex yoksa da çalışır, o zaman işi Claude tarafı yapar.
+- Python 3 ve şu paketler: `pip3 install trimesh scipy pillow`
+- [OpenSCAD](https://openscad.org): `brew install --cask openscad`
+- [Bambu Studio](https://bambulab.com/en/download/studio), yazıcına bağlı ve giriş yapılmış.
+
+## Hangi işi hangi model yapar?
+
+| Model | Nerede | Görevi |
 |---|---|---|
-| **Claude Code** (CLI, desktop, IDE extensions) | ✅ | This is what it was built for. |
-| **OpenAI Codex CLI / ChatGPT** | ❌ | In this setup Codex is a worker that Claude Code calls, not the host. |
-| **Google Antigravity, Cursor, other agents** | ❌ | They have no equivalent of the Claude Code features listed below. |
+| **Opus** | ana Claude Code oturumu | Yönetir, soruları sorar, **3D modeli kendisi yazar**, render'ları kontrol eder, ekranı kullanır. İş dağıtan tek model. |
+| **Luna** (`gpt-6-luna`, high) | Codex CLI | Araştırma, toplu işler, varyant üretme. Varsayılan olarak yüksek akıl yürütme ayarında çalışır. |
+| **Sol** (`gpt-6-sol`) | Codex CLI | Net bir spesifikasyona göre hassas iş. Opus kotası dolmaya yaklaşınca modellemeyi o devralır. |
+| **Astra** (`gpt-6-astra`) | Codex CLI | Sadece çok zor geometri ve akıl yürütme işleri. Kotayı en hızlı o tüketir. |
+| **Sonnet** | `sonnet-worker` | Codex'in erişemediği siteler, ikinci görüş, GPT çalışmazsa yedek. CAD'de kullanılmaz. |
+| **Haiku** | `haiku-worker` | Sadece yedek. |
 
-The policy relies on four Claude Code features:
+Bu dağılımın gerekçeleri ve dayandığı benchmark verileri `skills/opus-orchestration/SKILL.md` dosyasında. Opus'un parçayı kendisi modellemesinin sebebi şu: parçayı devretmek için yazılacak ayrıntılı spesifikasyon işin çoğu demek, ve CAD testlerinde en yüksek skoru Opus alıyor. Görsel maliyeti de hesaba katıldı. `render_sheet.py` dört açıyı tek bir görselde topluyor ve kaliteyi düşürmeden token harcamasını azaltıyor.
 
-- the `Agent` tool and `~/.claude/agents/` presets, for dispatching `sonnet-worker` and `haiku-worker`;
-- the `statusLine` hook, which provides `rate_limits` for live quota checks;
-- Opus running as the top-level session model;
-- Claude Code's skill loader.
+## Klasör yapısı
 
-Another agent might be able to read `SKILL.md` as plain text, but it can't apply the routing. The general ideas carry over to other stacks: a scarce orchestrator, cheap default workers, one-level delegation, and routing gated on quota. The implementation doesn't.
+```
+skills/3dprint/SKILL.md              3D iş akışı: araştırma → model → kontrol → dilimleme → baskı
+skills/3dprint/render_sheet.py       4 açılı önizleme görseli
+skills/opus-orchestration/SKILL.md   model yönlendirme kuralları
+agents/sonnet-worker.md              Sonnet ajan ayarı
+agents/haiku-worker.md               Haiku yedek ajan ayarı
+statusline/statusline.sh             Claude kota kullanımını kaydeden status line
+install.sh                           her şeyi ~/.claude altına bağlar
+```
 
-## Adapting it
+## Bilinmesi gerekenler
 
-No ChatGPT Plus / Codex? The policy falls back to Claude-side execution when GPT dispatches fail (see "Continuity" in `SKILL.md`). For CAD, that means Opus models directly rather than Sonnet.
+- **Kurulum global.** Skill'ler `~/.claude/skills/` altına bağlanır, `/3dprint` her klasörde çalışır.
+- **Klonlanan klasörü silme ya da taşıma.** Kurulan skill'ler o klasöre bağlı. Güncellemek için klasörde `git pull` yapman yeterli.
+- **Computer use proje başına açılır.** Claude'un Bambu Studio'yu kullanacağı her yeni klasörde bir kez `/mcp` → `computer-use` → Enable yap. Modelleme, kontroller ve CLI ile dilimleme bu ayar olmadan da çalışır.
+- **Orijinal repoyla birlikte kurma.** Bu repo [opus-orchestration](https://github.com/alisencerefeturk/opus-orchestration)'ın 3D baskı sürümü. İkisi aynı skill adını kullanıyor, sadece birini kur.
+- Skill dosyalarının içi İngilizce; Claude seninle yine Türkçe konuşur. Zorluk seviyeleri Türkçe: **basit**, **orta**, **zor**.
 
-Model IDs, quota thresholds (60% / 70% / 85%), and benchmark numbers reflect one account as of September 2026. Check `codex` → `/model` for the IDs available to you, and tune the thresholds to your own usage.
+## Uyumluluk
 
-## License
+| Ortam | Çalışır mı? | Neden |
+|---|---|---|
+| **Claude Code** (CLI, masaüstü, IDE eklentileri) | ✅ | Bunun için yapıldı. |
+| **Codex CLI / ChatGPT** | ❌ | Bu yapıda Codex, Claude Code'un çağırdığı bir işçi; ana ortam değil. |
+| **Antigravity, Cursor, diğer ajanlar** | ❌ | Gereken Claude Code özellikleri (Agent aracı, skill yükleyici, statusLine, computer use) onlarda yok. |
 
-MIT — see [LICENSE](LICENSE).
+Model adları, kota eşikleri ve benchmark sayıları Eylül 2026 itibarıyla. Kendi hesabındaki model adlarını `codex` → `/model` ile kontrol edebilirsin.
+
+## Lisans
+
+MIT, [LICENSE](LICENSE) dosyasına bak.
