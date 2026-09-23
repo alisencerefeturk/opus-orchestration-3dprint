@@ -24,7 +24,7 @@ Key ideas:
 
 ## 3D printing
 
-The `3d-print-workflow` skill covers the whole pipeline:
+The `3dprint` skill covers the whole pipeline. Start a task with **`/3dprint`** followed by what you want (e.g. `/3dprint a wall hook for a 12 mm towel rail, PETG`), or just describe a print job and Claude loads it automatically. It loads the routing policy by itself, so `/3dprint` is the only command you need.
 
 0. **Printer profile:** on first use Claude checks the tools, asks once about your printer, nozzle, AMS and filaments, and saves the answers to `~/.claude/3d-printer-profile.md`.
 1. **Clarify the request:** real dimensions in mm (never guessed for parts that must fit something), purpose, printer model and build volume, filament, colours.
@@ -44,8 +44,8 @@ The tier labels in the skill are Turkish: **basit** = simple, **orta** = medium,
 
 ```
 skills/opus-orchestration/SKILL.md   the routing policy (loaded as a Claude Code skill)
-skills/3d-print-workflow/SKILL.md    3D modelling → verification → slicing → printing workflow
-skills/3d-print-workflow/render_sheet.py  labelled 4-view preview sheet, sized for Claude's vision limits
+skills/3dprint/SKILL.md              3D modelling → verification → slicing → printing workflow
+skills/3dprint/render_sheet.py       labelled 4-view preview sheet, sized for Claude's vision limits
 agents/sonnet-worker.md              Sonnet preset
 agents/haiku-worker.md               Haiku fallback preset
 statusline/statusline.sh             statusLine hook that snapshots quota usage

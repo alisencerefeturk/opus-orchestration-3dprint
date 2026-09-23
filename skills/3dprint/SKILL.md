@@ -1,6 +1,6 @@
 ---
-name: 3d-print-workflow
-description: "End-to-end workflow for designing 3D-printable models and printing them on a Bambu Lab printer from Claude Code: turning a request (often a photo, sketch or rough description) into parametric CAD code (OpenSCAD / build123d / CadQuery), exporting STL/3MF, verifying printability and real-world proportions with rendered previews, slicing (Bambu Studio CLI or GUI), and sending the job to the printer through Bambu Studio with computer use. Load whenever the user asks to model, fix, scale, slice or print a part, mentions STL/3MF/G-code, Bambu Studio/Handy/MakerWorld, a printer (A1, A1 mini, P1S, P2S, X1C, H2D) or filament, or asks Claude to operate Bambu Studio on screen. Works together with opus-orchestration for routing."
+name: 3dprint
+description: "End-to-end workflow for designing 3D-printable models and printing them on a Bambu Lab printer from Claude Code: turning a request (often a photo, sketch or rough description) into parametric CAD code (OpenSCAD / build123d / CadQuery), exporting STL/3MF, verifying printability and real-world proportions with rendered previews, slicing (Bambu Studio CLI or GUI), and sending the job to the printer through Bambu Studio with computer use. Load whenever the user asks to model, fix, scale, slice or print a part, mentions STL/3MF/G-code, Bambu Studio/Handy/MakerWorld, a printer (A1, A1 mini, P1S, P2S, X1C, H2D) or filament, or asks Claude to operate Bambu Studio on screen. Invoked as /3dprint. Always loads opus-orchestration first for routing."
 ---
 
 # 3D print workflow (Bambu Lab + Claude Code)
@@ -11,9 +11,13 @@ printing is plain files and shell commands. Screen control (computer use) is
 only for the steps that have no CLI, so Claude can do everything up to the
 Print button without touching the GUI.
 
-Routing of each step across models is in `opus-orchestration`, section
-"3D printing and computer use". This file covers what to do; that one covers
-who does it.
+**Before anything else, load the `opus-orchestration` skill** (Skill tool)
+if it isn't loaded in this session yet. It decides which model does each
+step (section "3D printing and computer use"): for example, Opus models
+single parts itself, and only the main session may use computer use. This
+file covers what to do; that one covers who does it. The user may start a
+task with just `/3dprint`, so don't assume the policy is already in
+context.
 
 ## 0. Printer profile (first use only)
 
@@ -130,9 +134,9 @@ Before calling a model done:
    into one labelled PNG. It takes `.scad` or `.stl`/`.3mf`, and `%` ghost
    bodies show up in it.
    ```bash
-   python3 ~/.claude/skills/3d-print-workflow/render_sheet.py part.scad               # draft
-   python3 ~/.claude/skills/3d-print-workflow/render_sheet.py part.scad --mode final  # before printing
-   python3 ~/.claude/skills/3d-print-workflow/render_sheet.py part.scad \
+   python3 ~/.claude/skills/3dprint/render_sheet.py part.scad               # draft
+   python3 ~/.claude/skills/3dprint/render_sheet.py part.scad --mode final  # before printing
+   python3 ~/.claude/skills/3dprint/render_sheet.py part.scad \
      --closeup "tx,ty,tz,rx,ry,rz,dist" -o fit.png   # one feature up close
    ```
    Needs OpenSCAD and Pillow (`pip3 install pillow`). For build123d/CadQuery, export an STL and

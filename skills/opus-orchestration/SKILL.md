@@ -1,6 +1,6 @@
 ---
 name: opus-orchestration
-description: "Delegation policy for a Claude Pro + ChatGPT Plus stack (no Fable/Max access) where Opus runs the main orchestration loop and is the only dispatcher. On the GPT side (via Codex CLI) Luna is the default executor for basit and orta work (bulk, research, scoped implementation), Sol does precision execution, and Astra is reserved for hard reasoning only. Sonnet is the Claude-side lane for work needing Claude-side tools, second-opinion review, and fallback when GPT fails; its use is gated by ~/.claude/rate-limit-status.json. Opus classifies tasks inline (no Haiku triage gate); Haiku is a fallback only. Includes routing for 3D modelling/printing and computer use (with the 3d-print-workflow skill). Load whenever spawning sub-agents (Agent tool) or Codex CLI lanes, or planning any delegation."
+description: "Delegation policy for a Claude Pro + ChatGPT Plus stack (no Fable/Max access) where Opus runs the main orchestration loop and is the only dispatcher. On the GPT side (via Codex CLI) Luna is the default executor for basit and orta work (bulk, research, scoped implementation), Sol does precision execution, and Astra is reserved for hard reasoning only. Sonnet is the Claude-side lane for work needing Claude-side tools, second-opinion review, and fallback when GPT fails; its use is gated by ~/.claude/rate-limit-status.json. Opus classifies tasks inline (no Haiku triage gate); Haiku is a fallback only. Includes routing for 3D modelling/printing and computer use (with the 3dprint skill). Load whenever spawning sub-agents (Agent tool) or Codex CLI lanes, or planning any delegation."
 ---
 
 # Orchestration & delegation policy (Claude Pro + ChatGPT Plus stack)
@@ -176,7 +176,7 @@ throughput.
 
 This section covers routing for 3D modelling and printing. The workflow itself
 (dimensions, CAD code, printability rules, verification, slicing, printing
-through Bambu Studio) is in the `3d-print-workflow` skill, so load both.
+through Bambu Studio) is in the `3dprint` skill, so load both.
 
 **CAD modelling is not basit work.** Writing the code is easy. Getting the
 geometry right (orientation, which face a feature sits on, fit with the real
@@ -218,7 +218,7 @@ coding work.
   orientation and connectivity on GPT output, and check sourced dimensions
   on Claude output (including Opus's own).
 - **Image budget: save tokens where it doesn't cost quality.** Details are in
-  `3d-print-workflow`, step 4. In short: run the numeric checks before
+  `3dprint`, step 4. In short: run the numeric checks before
   looking at any image; iterate on a draft sheet (~2.6K tokens); use the
   full-resolution sheet (~4.8K) only for the final check before printing;
   look closer with a targeted close-up instead of enlarging everything; don't
