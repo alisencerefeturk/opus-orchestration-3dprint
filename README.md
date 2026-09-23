@@ -1,6 +1,8 @@
-# opus-orchestration
+# opus-orchestration-3dprint
 
-A [Claude Code](https://claude.com/claude-code) skill and agent presets for running a **Claude Pro + ChatGPT Plus** stack cost-effectively: Opus orchestrates, and cheaper models do the work.
+A [Claude Code](https://claude.com/claude-code) skill set for running a **Claude Pro + ChatGPT Plus** stack cost-effectively (Opus orchestrates, cheaper models do the work), **extended for 3D printing**: designing printable models as code, checking them, slicing, and sending them to a Bambu Lab printer through Bambu Studio with Claude's computer use.
+
+This is a 3D-printing variant of [opus-orchestration](https://github.com/alisencerefeturk/opus-orchestration). Install one or the other, not both: they use the same skill name.
 
 > **Claude Code only.** This needs Claude Code as the host. It won't work if you load it in Codex, Antigravity, or other agents. See [Compatibility](#compatibility).
 
@@ -20,12 +22,26 @@ Key ideas:
 - **Review family follows risk.** High-risk changes are reviewed by the other model family; routine work relies on tests and CI (rule 9, backed by Greptile's 2026 cross-family data).
 - **Routing follows data.** It is based on published benchmarks and a small Luna-vs-Sonnet head-to-head (see "Benchmark basis" and rule 5 in `SKILL.md`).
 
+## 3D printing
+
+The `3d-print-workflow` skill covers the whole pipeline:
+
+1. **Clarify the request:** real dimensions in mm (never guessed for parts that must fit something), purpose, printer model and build volume, filament, colours.
+2. **Model as parametric code:** OpenSCAD by default (models make 3–4× fewer code errors in it than in build123d/CadQuery), build123d only when needed.
+3. **Design for FDM:** wall thickness, overhangs, hole clearances, orientation for strength, first-layer details.
+4. **Verify before printing:** mesh check (watertight, size, no floating pieces) and rendered previews from several angles, compared against the real object.
+5. **Slice** with the Bambu Studio CLI where possible, or open the file in Bambu Studio.
+6. **Print** through the Bambu Studio GUI with computer use. Claude **always asks you to confirm** (printer, plate, filament, time, grams) before it presses Print, and never changes printer network or security settings.
+
+Model routing for 3D work (section "3D printing and computer use" in `SKILL.md`): Opus pins down dimensions and reviews the renders; Sol writes the CAD code with a render-and-self-check loop; Luna handles simple parts and variants; Astra is reserved for complex geometry Sol fails on; Sonnet isn't used for CAD geometry (it scored far lower on BenchCAD); computer use runs only in the main Opus session. The benchmark data behind this is cited in the skill.
+
 The tier labels in the skill are Turkish: **basit** = simple, **orta** = medium, **zor** = hard.
 
 ## Contents
 
 ```
-skills/opus-orchestration/SKILL.md   the policy (loaded as a Claude Code skill)
+skills/opus-orchestration/SKILL.md   the routing policy (loaded as a Claude Code skill)
+skills/3d-print-workflow/SKILL.md    3D modelling → verification → slicing → printing workflow
 agents/sonnet-worker.md              Sonnet preset
 agents/haiku-worker.md               Haiku fallback preset
 statusline/statusline.sh             statusLine hook that snapshots quota usage
@@ -34,27 +50,36 @@ install.sh                           symlinks everything into ~/.claude
 
 ## Install
 
-Requirements: Claude Code on a Pro or Max plan (Pro/Max accounts are the only ones that expose `rate_limits`), [Codex CLI](https://github.com/openai/codex) signed in with ChatGPT, and Python 3.
+Requirements: Claude Code on a Pro or Max plan (Pro/Max accounts are the only ones that expose `rate_limits`, and computer use needs Pro/Max too), [Codex CLI](https://github.com/openai/codex) signed in with ChatGPT, and Python 3.
+
+For 3D printing, also:
+
+- **macOS** (computer use in the Claude Code CLI is macOS-only);
+- [OpenSCAD](https://openscad.org) (`brew install --cask openscad`);
+- [Bambu Studio](https://bambulab.com/en/download/studio), signed in and connected to your printer;
+- `trimesh` for mesh checks (`pip3 install trimesh`);
+- computer use enabled once: in Claude Code run `/mcp`, select `computer-use`, choose **Enable**, then grant Accessibility and Screen Recording when macOS asks.
 
 ### Option A: let Claude Code install it (easiest)
 
 Paste this into a Claude Code session:
 
 ````text
-Install the opus-orchestration skill from https://github.com/alisencerefeturk/opus-orchestration for me:
+Install the opus-orchestration-3dprint skills from https://github.com/alisencerefeturk/opus-orchestration-3dprint for me:
 
-1. Clone the repo to ~/opus-orchestration. If that folder already exists and is this repo, run `git pull` in it instead.
-2. Run ./install.sh from the repo. It symlinks the skill, the agent presets, and statusline.sh into ~/.claude and backs up any existing files first.
+1. Clone the repo to ~/opus-orchestration-3dprint. If that folder already exists and is this repo, run `git pull` in it instead.
+2. Run ./install.sh from the repo. It symlinks the two skills, the agent presets, and statusline.sh into ~/.claude and backs up any existing files first.
 3. Add "statusLine": {"type": "command", "command": "~/.claude/statusline.sh"} to ~/.claude/settings.json. Merge it and keep every other setting as is. If a different statusLine is already configured, show it to me and ask before replacing it.
-4. Check the prerequisites and report each one: `python3 --version`, `codex --version`, and whether Codex is logged in (`codex login status`). If something is missing, tell me how to fix it, but don't install it yourself.
-5. Tell me to restart Claude Code, then summarize what was installed and anything I still need to do by hand.
+4. Check the prerequisites and report each one: `python3 --version`, `codex --version`, whether Codex is logged in (`codex login status`), whether OpenSCAD is installed (`openscad --version` or /Applications/OpenSCAD.app), whether Bambu Studio is in /Applications, and whether `python3 -c "import trimesh"` works. If something is missing, tell me how to fix it, but don't install it yourself.
+5. Remind me to enable computer use once via `/mcp` → computer-use → Enable (it asks for Accessibility and Screen Recording permissions).
+6. Tell me to restart Claude Code, then summarize what was installed and anything I still need to do by hand.
 ````
 
 ### Option B: manual
 
 ```bash
-git clone https://github.com/alisencerefeturk/opus-orchestration.git
-cd opus-orchestration
+git clone https://github.com/alisencerefeturk/opus-orchestration-3dprint.git
+cd opus-orchestration-3dprint
 ./install.sh
 ```
 
@@ -84,6 +109,8 @@ The policy relies on four Claude Code features:
 Another agent might be able to read `SKILL.md` as plain text, but it can't apply the routing. The general ideas carry over to other stacks: a scarce orchestrator, cheap default workers, one-level delegation, and routing gated on quota. The implementation doesn't.
 
 ## Adapting it
+
+No ChatGPT Plus / Codex? The policy falls back to Claude-side execution when GPT dispatches fail (see "Continuity" in `SKILL.md`). For CAD, that means Opus models directly rather than Sonnet.
 
 Model IDs, quota thresholds (60% / 70% / 85%), and benchmark numbers reflect one account as of September 2026. Check `codex` → `/model` for the IDs available to you, and tune the thresholds to your own usage.
 

@@ -27,6 +27,7 @@ link() {
 }
 
 link "$REPO/skills/opus-orchestration" "$CLAUDE_DIR/skills/opus-orchestration"
+link "$REPO/skills/3d-print-workflow"  "$CLAUDE_DIR/skills/3d-print-workflow"
 link "$REPO/agents/sonnet-worker.md"   "$CLAUDE_DIR/agents/sonnet-worker.md"
 link "$REPO/agents/haiku-worker.md"    "$CLAUDE_DIR/agents/haiku-worker.md"
 link "$REPO/statusline/statusline.sh"  "$CLAUDE_DIR/statusline.sh"

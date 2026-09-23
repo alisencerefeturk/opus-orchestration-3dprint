@@ -1,6 +1,6 @@
 ---
 name: opus-orchestration
-description: "Delegation policy for a Claude Pro + ChatGPT Plus stack (no Fable/Max access) where Opus runs the main orchestration loop and is the only dispatcher. On the GPT side (via Codex CLI) Luna is the default executor for basit and orta work (bulk, research, scoped implementation), Sol does precision execution, and Astra is reserved for hard reasoning only. Sonnet is the Claude-side lane for work needing Claude-side tools, second-opinion review, and fallback when GPT fails; its use is gated by ~/.claude/rate-limit-status.json. Opus classifies tasks inline (no Haiku triage gate); Haiku is a fallback only. Load whenever spawning sub-agents (Agent tool) or Codex CLI lanes, or planning any delegation."
+description: "Delegation policy for a Claude Pro + ChatGPT Plus stack (no Fable/Max access) where Opus runs the main orchestration loop and is the only dispatcher. On the GPT side (via Codex CLI) Luna is the default executor for basit and orta work (bulk, research, scoped implementation), Sol does precision execution, and Astra is reserved for hard reasoning only. Sonnet is the Claude-side lane for work needing Claude-side tools, second-opinion review, and fallback when GPT fails; its use is gated by ~/.claude/rate-limit-status.json. Opus classifies tasks inline (no Haiku triage gate); Haiku is a fallback only. Includes routing for 3D modelling/printing and computer use (with the 3d-print-workflow skill). Load whenever spawning sub-agents (Agent tool) or Codex CLI lanes, or planning any delegation."
 ---
 
 # Orchestration & delegation policy (Claude Pro + ChatGPT Plus stack)
@@ -72,7 +72,8 @@ throughput.
 6. **Astra is for hard reasoning only.** Astra burns Codex quota fastest
    (API price 5× Sol, 100× Luna). Use it only when the task's difficulty is
    the reasoning itself — tricky algorithm/math design, a subtle root cause
-   Luna and Sol have both failed to find, a correctness argument. Not for
+   Luna and Sol have both failed to find, a correctness argument, or complex
+   CAD geometry Sol has failed on (see "3D printing and computer use"). Not for
    terminal-heavy, computer-use, bulk, or long-context work: published
    numbers show Opus 5.5 ahead of Astra on Terminal-Bench 4.0 and OSWorld
    2.0, and every GPT tier already has a ~1M context.
@@ -147,7 +148,8 @@ throughput.
 - **Sonnet** (`sonnet-worker`) — Claude-side lane per rule 5's exceptions:
   work needing Claude-side tools, cross-family review of GPT output on
   high-risk work (rule 9), optional second opinions, and orta fallback when
-  GPT is failing. Quota-gated by the snapshot file.
+  GPT is failing. Quota-gated by the snapshot file. Not for CAD geometry
+  (see "3D printing and computer use").
 - **Sol** (Codex CLI) — precision execution once a complete spec exists:
   hard implementation, migrations, test-writing against a defined contract.
 - **Astra** (Codex CLI) — hard reasoning only, per rule 6.
@@ -169,6 +171,69 @@ throughput.
    difficulty is reasoning. The review follows rule 9: for high-risk work,
    the reviewer comes from the other family. Opus always owns final
    integration on this tier.
+
+## 3D printing and computer use
+
+This section covers routing for 3D modelling and printing. The workflow itself
+(dimensions, CAD code, printability rules, verification, slicing, printing
+through Bambu Studio) is in the `3d-print-workflow` skill, so load both.
+
+**CAD modelling is not basit work.** Writing the code is easy. Getting the
+geometry right (orientation, which face a feature sits on, fit with the real
+object) is the hard part, and it is where models differ most. Classify a
+new functional part as at least orta.
+
+| Step | Who | Why |
+|---|---|---|
+| Pin down dimensions, purpose, printer, material; write the geometry spec | **Opus** inline | It's judgment, and a wrong mating dimension wastes a whole print. |
+| Write/iterate CAD code (OpenSCAD default) | **Sol** | Close to Opus on CAD code, and runs on GPT quota. |
+| Simple parametric parts (box, spacer, bracket, plate), bulk variants, parameter tweaks | **Luna** | Cheap; fine when the geometry is already fully specified. |
+| Complex geometry Sol has failed on twice, or reconstruction from photos/multiple views | **Astra**, attaching reference images with `-i` | Rule 6 exception: here the difficulty is the spatial reasoning itself. |
+| Final visual review of rendered previews against the reference | **Opus** (reads the PNGs) | Top CAD score, and it's the judgment gate before plastic is used. |
+| Slicing via CLI, mesh checks, file work | **Luna** or inline | Mechanical. |
+| Anything on screen (Bambu Studio, Bambu Handy, other GUI apps) | **Opus**, top-level session only | See below. |
+
+- **Don't route CAD geometry to Sonnet.** On BenchCAD, Sonnet 5 scored well
+  below every other tier (below Luna), so it's the wrong Claude-side
+  fallback for modelling. If GPT is failing, Opus does the CAD itself, kept
+  lean. Haiku is never used for CAD.
+- **Every CAD dispatch spec must include a render loop:** the executor
+  renders PNG previews from at least 4 angles (including underneath), checks
+  them itself, runs the mesh check (watertight, extents, number of
+  connected bodies), and fixes errors before reporting. The dispatch returns
+  the `.scad`/`.py`, the STL/3MF and the PNG paths. With a render loop,
+  correctness goes up sharply without a stronger model, so this is cheaper
+  than escalating a tier. For reference photos, attach them to the spec with
+  `codex exec -i <image> ...`.
+- **Known failure modes to check in review:** GPT models tend to research
+  dimensions well but get orientation wrong (the part extruded on its side,
+  a rib floating off the base). Claude models tend to get the geometry right
+  but guess real-world dimensions instead of looking them up. So check
+  orientation and connectivity on GPT output, and check sourced dimensions
+  on Claude output.
+- **Computer use stays on the top-level Opus session.** The `computer-use`
+  MCP server runs only in an interactive session (not `claude -p`, and not
+  in `codex exec`), and the worker presets don't have it. It also holds one
+  lock per machine. Opus is also the strongest tier on OSWorld (rule 6).
+  Screenshots are expensive on Opus's quota, so: do everything possible from
+  the shell first (`open -a "Bambu Studio" file.3mf`, the Bambu Studio CLI
+  for slicing), keep GUI steps to the ones with no CLI, and take few,
+  deliberate screenshots.
+- **Physical actions need explicit user confirmation, every time.** Starting
+  a print, cancelling one, or changing printer settings: summarise and wait
+  for a yes. No delegate may start a print. Never change printer network or
+  security settings (LAN-only / Developer Mode) yourself.
+- **Basis (2026-09-23), directional only.** BenchCAD (CadQuery, 17.9K
+  programs; self-reported, unverified): Opus 5.5 0.730, GPT-5.6 Sol 0.706,
+  GPT-5.6 Luna 0.631, Sonnet 5 0.373. gpt-6-sol/luna aren't listed yet;
+  they replaced the 5.6 versions, so expect at least similar results.
+  GPT-6 Astra: vendor-reported 95.9% on BenchCAD Vision2Code with tools
+  (vs Fable 5.1 84.3%, GPT-5.6 Sol 83.3%), not independently re-graded.
+  GrandpaCAD (real user prompts): OpenSCAD had 3–4× fewer code errors than
+  build123d/CadQuery, and public 3D leaderboards didn't predict real
+  printable-model quality. XDA (Jun 2026, Opus 4.8 vs GPT-5.5): the
+  opposite failure modes above. Revisit when gpt-6 CAD numbers appear, or
+  if Sol's CAD output underperforms in practice.
 
 ## Continuity under quota exhaustion
 
