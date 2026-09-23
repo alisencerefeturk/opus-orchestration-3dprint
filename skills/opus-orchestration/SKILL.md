@@ -194,7 +194,8 @@ coding work.
 
 | Step | Who | Why |
 |---|---|---|
-| Intake (task, printer, project details, brief; `3dprint` section 1) | **Opus** inline | It's a conversation, and delegates can't talk to the user. A wrong mating dimension wastes a whole print. |
+| Intake conversation (task, printer, open questions, brief; `3dprint` section 1) | **Opus** inline | It's a conversation, and delegates can't talk to the user. A wrong mating dimension wastes a whole print. |
+| Research before modelling: device dimensions and standards, printer specs, asset sources, printing practice (`3dprint` 1.3) | **Luna** lanes with live web search, all in parallel; **sonnet-worker** for sites Codex can't reach | Cheap and parallel, and it's what gets a part right first time. Opus only merges the fact sheets. |
 | Model a single part, iterate on feedback, review renders | **Opus** inline | See above. |
 | Bulk variants of a finished model (sizes, names, sets), pure parameter changes | **Luna** (Sol if the variant logic is fiddly) | Mechanical once the model exists; spec is short. |
 | Modelling while Opus quota is high (5h ≥ 70% or 7d ≥ 80% in `~/.claude/rate-limit-status.json`) | **Sol**, with the render loop below; Opus reviews the final sheet only | Preserves Opus quota for judgment. |

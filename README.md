@@ -26,7 +26,7 @@ Key ideas:
 
 The `3dprint` skill covers the whole pipeline. Type **`/3dprint`** on its own and Claude starts by asking what you want to make, or add the task right away (e.g. `/3dprint a wall hook for a 12 mm towel rail, PETG`) to skip that question. Describing a print job without the command works too; Claude loads the skill automatically. It loads the routing policy by itself, so `/3dprint` is the only command you need.
 
-1. **Intake:** Claude asks what the job is (new part, decorative, enclosure, existing file, failed print). It asks about your printer once (model, nozzle, AMS slots, filaments), saves that to `~/.claude/3d-printer-profile.md`, and on later jobs only asks "for this printer?". Then it asks the project questions for that kind of job (measurements of what the part must fit, mounting, environment, colours…), skipping anything you already said. It writes a short `brief.md` for you to confirm before any modelling starts.
+1. **Intake and research:** Claude works out the job (new part, decorative, enclosure, existing file, failed print). It asks about your printer once (model, nozzle, AMS slots, filaments), saves that to `~/.claude/3d-printer-profile.md`, and on later jobs only asks "for this printer?". Then it **researches before asking**: it sends parallel research lanes (Luna with live web search, Sonnet where needed) to look up everything named in your prompt. That covers the device the part fits (e.g. a keyboard's keycap profile, row heights and stem), the printer's specs, official vector sources for artwork, standard-part dimensions, and printing pitfalls for that kind of part. Each lane returns a fact sheet with sources. Claude then asks only what research couldn't settle, such as your own measurements, and writes a short `brief.md` that lists each dimension with its source. If you say "don't ask me anything", it uses conservative, adjustable defaults and lists them as assumptions. It still always asks before starting a print.
 2. **Model as parametric code:** OpenSCAD by default (models make 3–4× fewer code errors in it than in build123d/CadQuery), build123d only when needed.
 3. **Design for FDM:** wall thickness, overhangs, hole clearances, orientation for strength, first-layer details.
 4. **Verify before printing:** mesh check (watertight, size, no floating pieces) and rendered previews from several angles, compared against the real object.
@@ -74,7 +74,7 @@ Install the opus-orchestration-3dprint skills from https://github.com/alisencere
 2. Run ./install.sh from the repo. It symlinks the two skills, the agent presets, and statusline.sh into ~/.claude and backs up any existing files first.
 3. Add "statusLine": {"type": "command", "command": "~/.claude/statusline.sh"} to ~/.claude/settings.json. Merge it and keep every other setting as is. If a different statusLine is already configured, show it to me and ask before replacing it.
 4. Check the prerequisites and report each one: `python3 --version`, `codex --version`, whether Codex is logged in (`codex login status`), whether OpenSCAD is installed (`openscad --version` or /Applications/OpenSCAD.app), whether Bambu Studio is in /Applications, and whether `python3 -c "import trimesh, scipy, PIL"` works. If something is missing, tell me how to fix it, but don't install it yourself.
-5. Remind me to enable computer use once via `/mcp` → computer-use → Enable (it asks for Accessibility and Screen Recording permissions).
+5. Confirm that the skills are linked globally (`ls -l ~/.claude/skills/3dprint ~/.claude/skills/opus-orchestration`), so `/3dprint` works from any folder. Remind me that the computer use switch is per project: in each folder where Claude should drive Bambu Studio, I run `/mcp` → computer-use → Enable once (the first time, it asks for Accessibility and Screen Recording permissions).
 6. Tell me to restart Claude Code, then summarize what was installed and anything I still need to do by hand.
 ````
 
@@ -86,7 +86,9 @@ cd opus-orchestration-3dprint
 ./install.sh
 ```
 
-`install.sh` symlinks the files into `~/.claude`, moving any existing files to `~/.claude/backups/opus-orchestration-<timestamp>/` first. Because they are symlinks, edits from either side show up in `git diff`.
+`install.sh` symlinks the files into `~/.claude`, moving any existing files to `~/.claude/backups/opus-orchestration-<timestamp>/` first. Because they are symlinks, edits from either side show up in `git diff`, and `git pull` updates the installed skills. Don't delete or move the cloned folder: the installed skills point to it.
+
+**It installs globally.** `~/.claude/skills/` is your user-level skills folder, so `/3dprint` works in every project and folder, not just this repo. One exception: Claude Code stores the computer use switch per project. The first time Claude needs to drive Bambu Studio in a new folder, run `/mcp` → `computer-use` → **Enable** there once. Everything else (modelling, checks, slicing via the CLI) works without it.
 
 Then enable the status line in `~/.claude/settings.json`:
 
